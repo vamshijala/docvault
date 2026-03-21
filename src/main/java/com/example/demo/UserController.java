@@ -1,16 +1,14 @@
 package com.example.demo;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.ResponseEntity;
-
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 @CrossOrigin(origins = "*")
@@ -21,7 +19,7 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
-    // ✅ Create user (SAVE to DB)
+    // ✅ Register user
     @PostMapping("/register")
     public User register(@RequestBody User user) {
         return userRepository.save(user);
@@ -33,7 +31,7 @@ public class UserController {
         return userRepository.findAll();
     }
 
-    // ✅ Upload user + file (FIXED)
+    // ✅ Upload single file
     @PostMapping("/uploadUser")
     public User uploadUser(
             @RequestParam("name") String name,
@@ -41,30 +39,84 @@ public class UserController {
             @RequestParam("file") MultipartFile file) {
 
         try {
-            // 🔥 FIX: use absolute path
             String uploadDir = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
 
             File folder = new File(uploadDir);
             if (!folder.exists()) {
-                folder.mkdir();
+                folder.mkdirs(); // ✅ FIXED
             }
 
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            String filePath = uploadDir + fileName;
+            String fullPath = uploadDir + fileName;
 
-            File dest = new File(filePath);
-            file.transferTo(dest);
+            file.transferTo(new File(fullPath));
 
             User user = new User();
             user.setName(name);
             user.setEmail(email);
-            user.setFilePath("uploads/" +filePath);
+            user.setFilePath("uploads/" + fileName); // ✅ FIXED
 
             return userRepository.save(user);
 
         } catch (Exception e) {
-            e.printStackTrace(); // 👈 check terminal if error
+            e.printStackTrace();
             throw new RuntimeException("Upload failed");
+        }
+    }
+
+    // ✅ Upload multiple files
+    @PostMapping("/uploadMultiple")
+    public List<User> uploadMultiple(
+            @RequestParam("name") String name,
+            @RequestParam("email") String email,
+            @RequestParam("files") MultipartFile[] files) {
+
+        List<User> users = new ArrayList<>();
+
+        String uploadDir = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
+
+        File folder = new File(uploadDir);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+
+        for (MultipartFile file : files) {
+            try {
+                String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+                String fullPath = uploadDir + fileName;
+
+                file.transferTo(new File(fullPath));
+
+                User user = new User();
+                user.setName(name);
+                user.setEmail(email);
+                user.setFilePath("uploads/" + fileName);
+
+                users.add(userRepository.save(user));
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        return users;
+    }
+
+    // ✅ Download file
+    @GetMapping("/download")
+    public ResponseEntity<Resource> downloadFile(@RequestParam String fileName) {
+        try {
+            String path = System.getProperty("user.dir") + "/uploads/" + fileName;
+
+            File file = new File(path);
+            Resource resource = new UrlResource(file.toURI());
+
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=" + file.getName())
+                    .body(resource);
+
+        } catch (Exception e) {
+            throw new RuntimeException("File not found");
         }
     }
 
@@ -78,100 +130,38 @@ public class UserController {
                 .orElse(null);
     }
 
-    // ✅ Delete user by email
-    @DeleteMapping("/{email:.+}")
-    public String deleteUser(@PathVariable String email) {
-        userRepository.findAll()
+    // ✅ Delete user + file
+    @DeleteMapping("/delete/{email:.+}")
+    public String deleteUserWithFile(@PathVariable String email) {
+
+        User user = userRepository.findAll()
                 .stream()
-                .filter(user -> user.getEmail().equals(email))
+                .filter(u -> u.getEmail().equals(email))
                 .findFirst()
-                .ifPresent(userRepository::delete);
+                .orElse(null);
 
-        return "User deleted";
-    }
-    @GetMapping("/download")
-public ResponseEntity<Resource> downloadFile(@RequestParam String fileName) {
-    try {
-        String path = System.getProperty("user.dir") + "/uploads/" + fileName;
-
-        File file = new File(path);
-        Resource resource = new UrlResource(file.toURI());
-
-        return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=" + file.getName())
-                .body(resource);
-
-    } catch (Exception e) {
-        throw new RuntimeException("File not found");
-    }
-}
-@DeleteMapping("/delete/{email:.+}")
-public String deleteUserWithFile(@PathVariable String email) {
-
-    User user = userRepository.findAll()
-            .stream()
-            .filter(u -> u.getEmail().equals(email))
-            .findFirst()
-            .orElse(null);
-
-    if (user == null) {
-        return "User not found";
-    }
-
-    try {
-        String filePath = user.getFilePath(); // uploads/file.jpg
-
-        if (filePath != null) {
-            String fullPath = System.getProperty("user.dir") + File.separator + filePath;
-            File file = new File(fullPath);
-
-            if (file.exists()) {
-                file.delete(); // delete file
-            }
+        if (user == null) {
+            return "User not found";
         }
 
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-
-    userRepository.delete(user); // delete DB
-
-    return "User + File deleted";
-}
-@PostMapping("/uploadMultiple")
-public List<User> uploadMultiple(
-        @RequestParam("name") String name,
-        @RequestParam("email") String email,
-        @RequestParam("files") MultipartFile[] files) {
-
-    List<User> users = new java.util.ArrayList<>();
-
-    String uploadDir = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
-
-    File folder = new File(uploadDir);
-    if (!folder.exists()) {
-        folder.mkdir();
-    }
-
-    for (MultipartFile file : files) {
         try {
-            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-            String filePath = uploadDir + fileName;
+            String filePath = user.getFilePath();
 
-            file.transferTo(new File(filePath));
+            if (filePath != null) {
+                String fullPath = System.getProperty("user.dir") + File.separator + filePath;
+                File file = new File(fullPath);
 
-            User user = new User();
-            user.setName(name);
-            user.setEmail(email);
-            user.setFilePath("uploads/" + fileName);
-
-            users.add(userRepository.save(user));
+                if (file.exists()) {
+                    file.delete();
+                }
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
 
-    return users;
-}
+        userRepository.delete(user);
+
+        return "User + File deleted";
+    }
 }

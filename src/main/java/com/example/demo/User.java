@@ -1,20 +1,21 @@
 package com.example.demo;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
+@Document(collection = "users")
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;   // Mongo uses String ID
 
     private String name;
     private String email;
-    private String filePath; // ✅ add here
+    private String password;   // 🔥 added for login
+    private String filePath;
 
-    // getters
-    public Long getId() {
+    // ✅ Getters
+    public String getId() {
         return id;
     }
 
@@ -26,12 +27,16 @@ public class User {
         return email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
     public String getFilePath() {
         return filePath;
     }
 
-    // setters
-    public void setId(Long id) {
+    // ✅ Setters
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -41,6 +46,10 @@ public class User {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public void setFilePath(String filePath) {
