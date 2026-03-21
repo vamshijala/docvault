@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+target/
+uploads/
+*.log
+node_modules/
+.env
