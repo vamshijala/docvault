@@ -11,9 +11,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-@CrossOrigin(origins = "*")
+
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = "*")
 
 public class UserController {
 
