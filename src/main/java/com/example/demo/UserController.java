@@ -14,6 +14,7 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/user")
+
 public class UserController {
 
     @Autowired
@@ -164,4 +165,6 @@ public class UserController {
 
         return "User + File deleted";
     }
+
+    
 }
